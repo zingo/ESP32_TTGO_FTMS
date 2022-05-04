@@ -47,6 +47,7 @@
 #include <NimBLEDevice.h>
 #endif
 
+//#include <algorithm>
 #include <math.h>
 #include <SPI.h>
 
@@ -62,6 +63,15 @@
 #endif
 
 #include "GPIOExtenderAW9523.h"
+
+#include <lvgl.h>
+#include "lv_conf.h"
+/*** Setup screen resolution for LVGL ***/
+static const uint16_t screenWidth = 480;
+static const uint16_t screenHeight = 320;
+static lv_disp_draw_buf_t draw_buf;
+static lv_color_t buf[screenWidth * 10];
+static lv_obj_t * setupTextArea;
 
 // Select and uncomment one of the Treadmills below
 //#define TREADMILL_MODEL TAURUS_9_5
@@ -327,13 +337,50 @@ class MyServerCallbacks : public BLEServerCallbacks {
   }
 };
 
+void setupAddText(const char *text)
+{
+  DEBUG_PRINTF(text);
+  lv_textarea_add_text(setupTextArea, text);
+  delayWithDisplayUpdate(1);
+}
+
+void setupAddText(String text)
+{
+  setupAddText(text.c_str());
+}
+
+void delayWithDisplayUpdate(unsigned long delayMilli)
+{
+  unsigned long timeStartMilli = millis();
+  unsigned long currentMilli = timeStartMilli;
+  while((currentMilli - timeStartMilli) < delayMilli)
+  {
+    lv_timer_handler();
+    unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ; 
+    if (timeLeftMilli >= 5 )
+    {
+      delay(5);
+    }
+    else
+    {
+      delay(timeLeftMilli);
+    }
+    currentMilli = millis();
+  }
+}
+
+
 
 void initBLE() {
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initBLE");
+#else
+  setupAddText("initBLE\n");
+#endif
 
   BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
   // create BLE Server, set callback for connect/disconnect
@@ -369,23 +416,35 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
 
   pAdvertising->start();
+#if 0
   delay(2000); // added to keep tft msg a bit longer ...
+#endif
 }
 
 
 void initSPIFFS() {
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS");
+#else
+  setupAddText("initSPIFFS\n");
+//  delayWithDisplayUpdate(2000);
+#endif
 
   if (!SPIFFS.begin(true)) { // true = formatOnFail
     DEBUG_PRINTLN("Cannot mount SPIFFS volume...");
-
+#if 0
     tft.setTextColor(TFT_RED);
     tft.println("FAILED!!!");
     delay(5000);
+#else
+  setupAddText("FAILED!!!\n");
+  delayWithDisplayUpdate(5000);
+#endif
+
     while (1) {
       bool on = millis() % 200 < 50;  // onboard_led.on = millis() % 200 < 50;
       // onboard_led.update();
@@ -398,12 +457,17 @@ void initSPIFFS() {
   else {
     DEBUG_PRINTLN("SPIFFS Setup Done");
   }
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS Done!");
   delay(2000);
+#else
+  setupAddText("initSPIFFS Done!\n");
+  //delayWithDisplayUpdate(2000);
+#endif
 }
 
 
@@ -418,6 +482,28 @@ void doReset()
   // calibrate
 }
 
+bool logEvent(EventType event)
+{
+
+  switch(event)
+  {
+    case EventType::KEY_UP:               setupAddText("[Event] KEY_UP\n"); break;
+    case EventType::KEY_LEFT:             setupAddText("[Event] KEY_LEFT\n"); break;
+    case EventType::KEY_DOWN:             setupAddText("[Event] KEY_DOWN\n"); break;
+    case EventType::KEY_RIGHT:            setupAddText("[Event] KEY_RIGHT\n"); break;
+    case EventType::KEY_OK:               setupAddText("[Event] KEY_OK\n"); break;
+    case EventType::KEY_BACK:             setupAddText("[Event] KEY_BACK\n"); break;
+    case EventType::TREADMILL_REED:       setupAddText("[Event] TREADMILL_REED\n"); break;
+    case EventType::TREADMILL_START:      setupAddText("[Event] TREADMILL_START\n"); break;
+    case EventType::TREADMILL_SPEED_DOWN: setupAddText("[Event] TREADMILL_SPEED_DOWN\n"); break;
+    case EventType::TREADMILL_INC_DOWN:   setupAddText("[Event] TREADMILL_INC_DOWN\n"); break;
+    case EventType::TREADMILL_STOP:       setupAddText("[Event] TREADMILL_STOP\n"); break;
+    case EventType::TREADMILL_SPEED_UP:   setupAddText("[Event] TREADMILL_SPEED_UP\n"); break;
+    case EventType::TREADMILL_INC_UP:     setupAddText("[Event] TREADMILL_INC_UP\n"); break;
+  }
+  return false;
+}
+
 // A simple event handler, currenly just a call stack, an event queue would be smarter
 // but this solves the problem as a start, not sure it we really have the usecase where
 // we need a queue, lets add it in that case
@@ -429,6 +515,7 @@ void handle_event(EventType event)
   // in that case.
   // Currently there is no queue so if Events are translated to new events and call
   // handle_event() to post them take care to not get into loops.
+  if (logEvent(event)) return;
   if (GPIOExtender.pressEvent(event)) return;
 
   DEBUG_PRINTF("handle_event() Cant handle Event:0x%x\n",static_cast<uint32_t>(event));
@@ -976,6 +1063,7 @@ const char* getRstReason(esp_reset_reason_t r) {
 }
 
 void showInfo() {
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(2);
@@ -988,8 +1076,28 @@ void showInfo() {
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
-}
+#else
+  String intoText = String("ESP32 FTMS - ") + VERSION + String("\n") + TREADMILL_MODEL_NAME + String("\n");
+  setupAddText(intoText.c_str());
+  intoText = String("Speed[") + min_speed + String(", ") + max_speed + String("]\n");
+  setupAddText(intoText.c_str());
+  intoText = String("Incline[") + min_incline + String(", ") + max_incline + String("]\n");
+  setupAddText(intoText.c_str());
+  intoText = String("Dist/REED:") + belt_distance + String("mm\n");
+  setupAddText(intoText.c_str());
+  intoText = String("REED:") + hasReed + String("\n");
+  setupAddText(intoText.c_str());
+  intoText = String("MPU6050:") + hasMPU6050 + String("\n");
+  setupAddText(intoText.c_str());
+  intoText = String("VL53L0X:") + hasVL53L0X + String("\n");
+  setupAddText(intoText.c_str());
+  intoText = String("IrSense:") + hasIrSense + String("\n");
+  setupAddText(intoText.c_str());
+  intoText = String("GPIOExtender(AW9523):") + GPIOExtender.isAvailable() + String("\n");
+  setupAddText(intoText.c_str());
+#endif
 
+}
 
 #ifdef AW9523_IRQ_MODE
 static void IRAM_ATTR GPIOExtenderInterrupt(void) {
@@ -997,11 +1105,10 @@ static void IRAM_ATTR GPIOExtenderInterrupt(void) {
 }
 #endif
 
-
 static void initGPIOExtender(void) {
   while (!GPIOExtender.begin())
   {
-    Serial.println("GPIOExtender not found");
+    setupAddText("GPIOExtender not found");
     return;
   }
 
@@ -1011,7 +1118,102 @@ static void initGPIOExtender(void) {
   attachInterrupt(digitalPinToInterrupt(AW9523_INTERRUPT_PIN), GPIOExtenderInterrupt, CHANGE);
   GPIOExtender.getPins(); // Get pins one to clear intrrupts
 #endif
-  Serial.println("GPIOExtender Setup Done");
+  setupAddText("GPIOExtender Setup Done");
+}
+
+/* Counter button event handler */
+static void counter_event_handler(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t *btn = lv_event_get_target(e);
+  if (code == LV_EVENT_CLICKED)
+  {
+    static uint8_t cnt = 0;
+    cnt++;
+
+    /*Get the first child of the button which is the label and change its text*/
+    lv_obj_t *label = lv_obj_get_child(btn, 0);
+    lv_label_set_text_fmt(label, "Button: %d", cnt);
+    LV_LOG_USER("Clicked");
+    Serial.println("Clicked");
+  }
+}
+
+/* Toggle button event handler */
+static void toggle_event_handler(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_VALUE_CHANGED)
+  {
+    LV_LOG_USER("Toggled");
+    Serial.println("Toggled");
+  }
+}
+
+void displaySetupScreen(void)
+{
+  lv_obj_t *label;
+
+  // Button with counter
+  lv_obj_t *btn1 = lv_btn_create(lv_scr_act());
+  lv_obj_add_event_cb(btn1, counter_event_handler, LV_EVENT_ALL, NULL);
+
+  lv_obj_set_pos(btn1, 100, 230); 
+  lv_obj_set_size(btn1, 120, 50);
+
+
+  label = lv_label_create(btn1);
+  lv_label_set_text(label, "Button");
+  lv_obj_center(label);
+
+  // Toggle button
+  lv_obj_t *btn2 = lv_btn_create(lv_scr_act());
+  lv_obj_add_event_cb(btn2, toggle_event_handler, LV_EVENT_ALL, NULL);
+  lv_obj_add_flag(btn2, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_set_pos(btn2, 250, 230);
+  lv_obj_set_size(btn2, 120, 50);
+
+  label = lv_label_create(btn2);
+  lv_label_set_text(label, "Toggle Button");
+  lv_obj_center(label);
+
+
+}
+
+/*** Display callback to flush the buffer to screen ***/
+void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
+{
+  uint32_t w = (area->x2 - area->x1 + 1);
+  uint32_t h = (area->y2 - area->y1 + 1);
+
+  tft.startWrite();
+  tft.setAddrWindow(area->x1, area->y1, w, h);
+  tft.pushColors((uint16_t *)&color_p->full, w * h, true);
+  tft.endWrite();
+
+  lv_disp_flush_ready(disp);
+}
+
+/*** Touchpad callback to read the touchpad ***/
+void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
+{
+  uint16_t touchX, touchY;
+  bool touched = tft.getTouch(&touchX, &touchY);
+
+  if (!touched)
+  {
+    data->state = LV_INDEV_STATE_REL;
+  }
+  else
+  {
+    data->state = LV_INDEV_STATE_PR;
+
+    /*Set the coordinates*/
+    data->point.x = touchX;
+    data->point.y = touchY;
+
+    // Serial.printf("Touch (x,y): (%03d,%03d)\n",touchX,touchY );
+  }
 }
 
 void setup() {
@@ -1043,22 +1245,13 @@ void setup() {
 
   buttonInit();
   tft.init(); // vs begin??
+
+  lv_init();
+
   tft.setRotation(1); // 3
 #ifdef TFT_ROTATE
   tft.setRotation(TFT_ROTATE);
 #endif
-#ifdef TFT_BL
-  if (TFT_BL > 0) {
-    pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
-  }
-#endif
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("Setup Started");
-
 
 #if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
   if (tft.touch()) {
@@ -1069,6 +1262,63 @@ void setup() {
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
 #endif
+
+#ifdef TFT_BL
+  if (TFT_BL > 0) {
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  }
+#endif
+
+  /* LVGL : Setting up buffer to use for display */
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
+
+  /*** LVGL : Setup & Initialize the display device driver ***/
+  static lv_disp_drv_t disp_drv;
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.hor_res = screenWidth;
+  disp_drv.ver_res = screenHeight;
+  disp_drv.flush_cb = display_flush;
+  disp_drv.draw_buf = &draw_buf;
+  lv_disp_drv_register(&disp_drv);
+
+  /*** LVGL : Setup & Initialize the input device driver ***/
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = touchpad_read;
+  lv_indev_drv_register(&indev_drv);
+
+  /*** Create simple label and show LVGL version ***/
+//  String LVGL_Arduino = "WT32-SC01 with LVGL ";
+//  LVGL_Arduino += String('v') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
+//  lv_obj_t *label = lv_label_create(lv_scr_act()); // full screen as the parent
+//  lv_label_set_text(label, LVGL_Arduino.c_str());  // set label text
+//  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);      // Center but 20 from the top
+
+  /*Create a spinner*/
+//  lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
+//  lv_obj_set_pos(spinner, lv_pct(85), lv_pct(2));
+//  lv_obj_set_size(spinner,lv_pct(10), lv_pct(10));
+//  lv_obj_center(spinner);
+
+
+  delayWithDisplayUpdate(3000);
+  setupTextArea = lv_textarea_create(lv_scr_act());
+  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
+  //lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
+  lv_obj_set_size(setupTextArea, lv_pct(100), lv_pct(100));
+
+#if 0
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("Setup Started");
+#else
+  setupAddText("Setup Started\n");
+#endif
+
 
 #ifdef TARGET_WT32_SC01
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
@@ -1085,7 +1335,7 @@ void setup() {
   //modeButton.drawButton();
 #endif
 
-  delay(3000);
+//  delay(3000);
 
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
@@ -1117,76 +1367,115 @@ void setup() {
 
   if (isWifiAvailable) {
     isMqttAvailable = mqttConnect(true);
-    delay(2000);
+    delayWithDisplayUpdate(2000);
   }
 
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("mqtt setup Done!");
   delay(2000);
+#else
+  setupAddText("mqtt setup Done!\n");
+  delayWithDisplayUpdate(2000);
+#endif
 
 #ifndef NO_MPU6050
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setCursor(20, 40);
   tft.println("init MPU6050");
+#else
+  setupAddText("init MPU6050\n");
+#endif
 
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
   if (status != 0) {
+#if 0
     tft.setTextColor(TFT_RED);
     tft.println("MPU6050 setup failed!");
     tft.println(status);
     delay(2000);
+#else
+  setupAddText("MPU6050 setup failed!\n");
+  //lv_textarea_add_text(textArea, status);
+  //delayWithDisplayUpdate(2000);
+#endif
   }
   else {
     DEBUG_PRINTLN(F("Calculating offsets, do not move MPU6050"));
+#if 0
     tft.setTextFont(2);
     tft.println("Calc offsets, do not move MPU6050 (3sec)");
-    tft.setTextFont(4);
+#else
+    setupAddText("Calc offsets, do not move MPU6050 (3sec)\n");
+#endif
+
     mpu.calcOffsets(); // gyro and accel.
-    delay(2000);
+    delayWithDisplayUpdate(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
+#if 0
     tft.setTextColor(TFT_GREEN);
     tft.println("MPU6050 OK!");
     delay(2000);
+#else
+    setupAddText("MPU6050 OK!\n");
+#endif
   }
 #else
   hasMPU6050 = false;
 #endif
 #ifndef NO_VL53L0X
+#if 0
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setCursor(20, 40);
   tft.println("init VL53L0X");
+#else
+  setupAddText("init VL53L0X\n");
+#endif
 
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
+#if 0
     tft.setTextColor(TFT_RED);
     tft.println("VL53L0X setup failed!");
     delay(2000);
+#else
+    setupAddText("VL53L0X setup failed!\n");
+#endif
   }
   else {
     DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
+#if 0
     tft.setTextColor(TFT_GREEN);
     tft.println("VL53L0X initialized!");
-    hasVL53L0X = true;
     delay(2000);
+#else
+    setupAddText("VL53L0X initialized!\n");
+#endif
+    hasVL53L0X = true;
   }
 #else
   hasVL53L0X = false;
 #endif
 
-  DEBUG_PRINTLN("Setup done");
+  setupAddText("--- Setup done ---\n");
   showInfo();
 
-  delay(4000);
+  //delayWithDisplayUpdate(4000);
+
   updateDisplay(true);
+
+  lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
+  lv_obj_set_size(setupTextArea, lv_pct(50), lv_pct(50));
 
   setTime(0,0,0,0,0,0);
 }
@@ -1238,6 +1527,12 @@ void loop_handle_BLE() {
   }
 }
 
+void loop_handle_Display()
+{
+  lv_timer_handler();
+}
+
+
 //#define SHOW_FPS
 
 void loop() {
@@ -1256,6 +1551,7 @@ void loop() {
   loop_handle_touch();
   loop_handle_WIFI();
   loop_handle_BLE();
+  loop_handle_Display();
 
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
