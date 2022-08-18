@@ -522,7 +522,7 @@ void handle_event(EventType event)
   return;
 }
 
-void buttonInit()
+void initButton()
 {
 #ifdef BUTTON_1
   // button 1 (GPIO 0) control auto/manual mode and reset timers
@@ -1150,36 +1150,6 @@ static void toggle_event_handler(lv_event_t * e)
   }
 }
 
-void displaySetupScreen(void)
-{
-  lv_obj_t *label;
-
-  // Button with counter
-  lv_obj_t *btn1 = lv_btn_create(lv_scr_act());
-  lv_obj_add_event_cb(btn1, counter_event_handler, LV_EVENT_ALL, NULL);
-
-  lv_obj_set_pos(btn1, 100, 230); 
-  lv_obj_set_size(btn1, 120, 50);
-
-
-  label = lv_label_create(btn1);
-  lv_label_set_text(label, "Button");
-  lv_obj_center(label);
-
-  // Toggle button
-  lv_obj_t *btn2 = lv_btn_create(lv_scr_act());
-  lv_obj_add_event_cb(btn2, toggle_event_handler, LV_EVENT_ALL, NULL);
-  lv_obj_add_flag(btn2, LV_OBJ_FLAG_CHECKABLE);
-  lv_obj_set_pos(btn2, 250, 230);
-  lv_obj_set_size(btn2, 120, 50);
-
-  label = lv_label_create(btn2);
-  lv_label_set_text(label, "Toggle Button");
-  lv_obj_center(label);
-
-
-}
-
 /*** Display callback to flush the buffer to screen ***/
 void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
 {
@@ -1216,6 +1186,67 @@ void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
   }
 }
 
+void showScreenBoot() {
+  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
+  lv_obj_set_pos(setupTextArea, 0, 0);
+  lv_obj_set_size(setupTextArea, lv_pct(100), lv_pct(100));
+}
+
+void showScreenMain() {
+  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
+  lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
+  lv_obj_set_size(setupTextArea, lv_pct(50), lv_pct(50));
+}
+
+
+void initGFX() {
+  tft.init();
+  lv_init();
+
+  tft.setRotation(1); // 3
+#ifdef TFT_ROTATE
+  tft.setRotation(TFT_ROTATE);
+#endif
+
+#if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
+  if (tft.touch()) {
+    tft.setTextFont(4);
+    tft.setCursor(20, tft.height()/2);
+    tft.println("Press corner near arrow to callibrate touch");
+    tft.setCursor(0, 0);
+    tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
+  }
+#endif
+#ifdef TFT_BL
+  if (TFT_BL > 0) {
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  }
+#endif
+
+  /* LVGL : Setting up buffer to use for display */
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
+
+  /*** LVGL : Setup & Initialize the display device driver ***/
+  static lv_disp_drv_t disp_drv;
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.hor_res = screenWidth;
+  disp_drv.ver_res = screenHeight;
+  disp_drv.flush_cb = display_flush;
+  disp_drv.draw_buf = &draw_buf;
+  lv_disp_drv_register(&disp_drv);
+
+  /*** LVGL : Setup & Initialize the input device driver ***/
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = touchpad_read;
+  lv_indev_drv_register(&indev_drv);
+
+  delayWithDisplayUpdate(3000);
+  setupTextArea = lv_textarea_create(lv_scr_act());
+}
+
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -1243,71 +1274,10 @@ void setup() {
   hasReed          = true;
 #endif
 
-  buttonInit();
-  tft.init(); // vs begin??
+  initButton();
 
-  lv_init();
-
-  tft.setRotation(1); // 3
-#ifdef TFT_ROTATE
-  tft.setRotation(TFT_ROTATE);
-#endif
-
-#if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
-  if (tft.touch()) {
-    tft.setTextFont(4);
-    tft.setCursor(20, tft.height()/2);
-    tft.println("Press corner near arrow to callibrate touch");
-    tft.setCursor(0, 0);
-    tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
-  }
-#endif
-
-#ifdef TFT_BL
-  if (TFT_BL > 0) {
-    pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
-  }
-#endif
-
-  /* LVGL : Setting up buffer to use for display */
-  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
-
-  /*** LVGL : Setup & Initialize the display device driver ***/
-  static lv_disp_drv_t disp_drv;
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.hor_res = screenWidth;
-  disp_drv.ver_res = screenHeight;
-  disp_drv.flush_cb = display_flush;
-  disp_drv.draw_buf = &draw_buf;
-  lv_disp_drv_register(&disp_drv);
-
-  /*** LVGL : Setup & Initialize the input device driver ***/
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = touchpad_read;
-  lv_indev_drv_register(&indev_drv);
-
-  /*** Create simple label and show LVGL version ***/
-//  String LVGL_Arduino = "WT32-SC01 with LVGL ";
-//  LVGL_Arduino += String('v') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-//  lv_obj_t *label = lv_label_create(lv_scr_act()); // full screen as the parent
-//  lv_label_set_text(label, LVGL_Arduino.c_str());  // set label text
-//  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);      // Center but 20 from the top
-
-  /*Create a spinner*/
-//  lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
-//  lv_obj_set_pos(spinner, lv_pct(85), lv_pct(2));
-//  lv_obj_set_size(spinner,lv_pct(10), lv_pct(10));
-//  lv_obj_center(spinner);
-
-
-  delayWithDisplayUpdate(3000);
-  setupTextArea = lv_textarea_create(lv_scr_act());
-  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
-  //lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
-  lv_obj_set_size(setupTextArea, lv_pct(100), lv_pct(100));
+  initGFX();
+  showScreenBoot();
 
 #if 0
   tft.fillScreen(TFT_BLACK);
@@ -1318,7 +1288,6 @@ void setup() {
 #else
   setupAddText("Setup Started\n");
 #endif
-
 
 #ifdef TARGET_WT32_SC01
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
@@ -1335,8 +1304,6 @@ void setup() {
   //modeButton.drawButton();
 #endif
 
-//  delay(3000);
-
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
@@ -1351,7 +1318,6 @@ void setup() {
   I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ);
 
   initGPIOExtender();
-
 
   initBLE();
   initSPIFFS();
@@ -1379,7 +1345,7 @@ void setup() {
   delay(2000);
 #else
   setupAddText("mqtt setup Done!\n");
-  delayWithDisplayUpdate(2000);
+//  delayWithDisplayUpdate(2000);  // remove?? Msg in log no need to wait
 #endif
 
 #ifndef NO_MPU6050
@@ -1470,12 +1436,9 @@ void setup() {
   setupAddText("--- Setup done ---\n");
   showInfo();
 
-  //delayWithDisplayUpdate(4000);
-
   updateDisplay(true);
 
-  lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
-  lv_obj_set_size(setupTextArea, lv_pct(50), lv_pct(50));
+  showScreenMain();
 
   setTime(0,0,0,0,0,0);
 }
