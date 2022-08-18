@@ -339,9 +339,12 @@ class MyServerCallbacks : public BLEServerCallbacks {
 
 void logText(const char *text)
 {
+  // Serial consol
   DEBUG_PRINTF(text);
+  // On screen console
   lv_textarea_add_text(setupTextArea, text);
-  delayWithDisplayUpdate(1);
+  // Trigger a GFX update
+  updateGFX();
 }
 
 void logText(String text)
@@ -355,7 +358,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
   unsigned long currentMilli = timeStartMilli;
   while((currentMilli - timeStartMilli) < delayMilli)
   {
-    lv_timer_handler();
+    updateGFX();
     unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ; 
     if (timeLeftMilli >= 5 )
     {
@@ -1490,7 +1493,7 @@ void loop_handle_BLE() {
   }
 }
 
-void loop_handle_Display()
+void updateGFX()
 {
   lv_timer_handler();
 }
@@ -1514,7 +1517,7 @@ void loop() {
   loop_handle_touch();
   loop_handle_WIFI();
   loop_handle_BLE();
-  loop_handle_Display();
+  updateGFX();
 
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true

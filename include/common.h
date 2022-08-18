@@ -176,5 +176,5 @@ void handle_event(EventType event);
 void logText(const char *text);
 void logText(String text);
 void delayWithDisplayUpdate(unsigned long delayMilli);
-
+void updateGFX();
 #endif
