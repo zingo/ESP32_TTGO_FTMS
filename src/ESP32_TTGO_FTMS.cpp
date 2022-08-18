@@ -337,16 +337,16 @@ class MyServerCallbacks : public BLEServerCallbacks {
   }
 };
 
-void setupAddText(const char *text)
+void logText(const char *text)
 {
   DEBUG_PRINTF(text);
   lv_textarea_add_text(setupTextArea, text);
   delayWithDisplayUpdate(1);
 }
 
-void setupAddText(String text)
+void logText(String text)
 {
-  setupAddText(text.c_str());
+  logText(text.c_str());
 }
 
 void delayWithDisplayUpdate(unsigned long delayMilli)
@@ -379,7 +379,7 @@ void initBLE() {
   tft.setCursor(20, 40);
   tft.println("initBLE");
 #else
-  setupAddText("initBLE\n");
+  logText("initBLE\n");
 #endif
 
   BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
@@ -430,7 +430,7 @@ void initSPIFFS() {
   tft.setCursor(20, 40);
   tft.println("initSPIFFS");
 #else
-  setupAddText("initSPIFFS\n");
+  logText("initSPIFFS\n");
 //  delayWithDisplayUpdate(2000);
 #endif
 
@@ -441,7 +441,7 @@ void initSPIFFS() {
     tft.println("FAILED!!!");
     delay(5000);
 #else
-  setupAddText("FAILED!!!\n");
+  logText("FAILED!!!\n");
   delayWithDisplayUpdate(5000);
 #endif
 
@@ -465,7 +465,7 @@ void initSPIFFS() {
   tft.println("initSPIFFS Done!");
   delay(2000);
 #else
-  setupAddText("initSPIFFS Done!\n");
+  logText("initSPIFFS Done!\n");
   //delayWithDisplayUpdate(2000);
 #endif
 }
@@ -487,19 +487,19 @@ bool logEvent(EventType event)
 
   switch(event)
   {
-    case EventType::KEY_UP:               setupAddText("[Event] KEY_UP\n"); break;
-    case EventType::KEY_LEFT:             setupAddText("[Event] KEY_LEFT\n"); break;
-    case EventType::KEY_DOWN:             setupAddText("[Event] KEY_DOWN\n"); break;
-    case EventType::KEY_RIGHT:            setupAddText("[Event] KEY_RIGHT\n"); break;
-    case EventType::KEY_OK:               setupAddText("[Event] KEY_OK\n"); break;
-    case EventType::KEY_BACK:             setupAddText("[Event] KEY_BACK\n"); break;
-    case EventType::TREADMILL_REED:       setupAddText("[Event] TREADMILL_REED\n"); break;
-    case EventType::TREADMILL_START:      setupAddText("[Event] TREADMILL_START\n"); break;
-    case EventType::TREADMILL_SPEED_DOWN: setupAddText("[Event] TREADMILL_SPEED_DOWN\n"); break;
-    case EventType::TREADMILL_INC_DOWN:   setupAddText("[Event] TREADMILL_INC_DOWN\n"); break;
-    case EventType::TREADMILL_STOP:       setupAddText("[Event] TREADMILL_STOP\n"); break;
-    case EventType::TREADMILL_SPEED_UP:   setupAddText("[Event] TREADMILL_SPEED_UP\n"); break;
-    case EventType::TREADMILL_INC_UP:     setupAddText("[Event] TREADMILL_INC_UP\n"); break;
+    case EventType::KEY_UP:               logText("[Event] KEY_UP\n"); break;
+    case EventType::KEY_LEFT:             logText("[Event] KEY_LEFT\n"); break;
+    case EventType::KEY_DOWN:             logText("[Event] KEY_DOWN\n"); break;
+    case EventType::KEY_RIGHT:            logText("[Event] KEY_RIGHT\n"); break;
+    case EventType::KEY_OK:               logText("[Event] KEY_OK\n"); break;
+    case EventType::KEY_BACK:             logText("[Event] KEY_BACK\n"); break;
+    case EventType::TREADMILL_REED:       logText("[Event] TREADMILL_REED\n"); break;
+    case EventType::TREADMILL_START:      logText("[Event] TREADMILL_START\n"); break;
+    case EventType::TREADMILL_SPEED_DOWN: logText("[Event] TREADMILL_SPEED_DOWN\n"); break;
+    case EventType::TREADMILL_INC_DOWN:   logText("[Event] TREADMILL_INC_DOWN\n"); break;
+    case EventType::TREADMILL_STOP:       logText("[Event] TREADMILL_STOP\n"); break;
+    case EventType::TREADMILL_SPEED_UP:   logText("[Event] TREADMILL_SPEED_UP\n"); break;
+    case EventType::TREADMILL_INC_UP:     logText("[Event] TREADMILL_INC_UP\n"); break;
   }
   return false;
 }
@@ -1078,23 +1078,23 @@ void showInfo() {
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
 #else
   String intoText = String("ESP32 FTMS - ") + VERSION + String("\n") + TREADMILL_MODEL_NAME + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("Speed[") + min_speed + String(", ") + max_speed + String("]\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("Incline[") + min_incline + String(", ") + max_incline + String("]\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("Dist/REED:") + belt_distance + String("mm\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("REED:") + hasReed + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("MPU6050:") + hasMPU6050 + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("VL53L0X:") + hasVL53L0X + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("IrSense:") + hasIrSense + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
   intoText = String("GPIOExtender(AW9523):") + GPIOExtender.isAvailable() + String("\n");
-  setupAddText(intoText.c_str());
+  logText(intoText.c_str());
 #endif
 
 }
@@ -1108,7 +1108,7 @@ static void IRAM_ATTR GPIOExtenderInterrupt(void) {
 static void initGPIOExtender(void) {
   while (!GPIOExtender.begin())
   {
-    setupAddText("GPIOExtender not found");
+    logText("GPIOExtender not found");
     return;
   }
 
@@ -1118,7 +1118,7 @@ static void initGPIOExtender(void) {
   attachInterrupt(digitalPinToInterrupt(AW9523_INTERRUPT_PIN), GPIOExtenderInterrupt, CHANGE);
   GPIOExtender.getPins(); // Get pins one to clear intrrupts
 #endif
-  setupAddText("GPIOExtender Setup Done");
+  logText("GPIOExtender Setup Done");
 }
 
 /* Counter button event handler */
@@ -1286,7 +1286,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 #else
-  setupAddText("Setup Started\n");
+  logText("Setup Started\n");
 #endif
 
 #ifdef TARGET_WT32_SC01
@@ -1344,7 +1344,7 @@ void setup() {
   tft.println("mqtt setup Done!");
   delay(2000);
 #else
-  setupAddText("mqtt setup Done!\n");
+  logText("mqtt setup Done!\n");
 //  delayWithDisplayUpdate(2000);  // remove?? Msg in log no need to wait
 #endif
 
@@ -1355,7 +1355,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("init MPU6050");
 #else
-  setupAddText("init MPU6050\n");
+  logText("init MPU6050\n");
 #endif
 
   byte status = mpu.begin();
@@ -1368,7 +1368,7 @@ void setup() {
     tft.println(status);
     delay(2000);
 #else
-  setupAddText("MPU6050 setup failed!\n");
+  logText("MPU6050 setup failed!\n");
   //lv_textarea_add_text(textArea, status);
   //delayWithDisplayUpdate(2000);
 #endif
@@ -1379,7 +1379,7 @@ void setup() {
     tft.setTextFont(2);
     tft.println("Calc offsets, do not move MPU6050 (3sec)");
 #else
-    setupAddText("Calc offsets, do not move MPU6050 (3sec)\n");
+    logText("Calc offsets, do not move MPU6050 (3sec)\n");
 #endif
 
     mpu.calcOffsets(); // gyro and accel.
@@ -1391,7 +1391,7 @@ void setup() {
     tft.println("MPU6050 OK!");
     delay(2000);
 #else
-    setupAddText("MPU6050 OK!\n");
+    logText("MPU6050 OK!\n");
 #endif
   }
 #else
@@ -1404,7 +1404,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("init VL53L0X");
 #else
-  setupAddText("init VL53L0X\n");
+  logText("init VL53L0X\n");
 #endif
 
   sensor.setTimeout(500);
@@ -1415,7 +1415,7 @@ void setup() {
     tft.println("VL53L0X setup failed!");
     delay(2000);
 #else
-    setupAddText("VL53L0X setup failed!\n");
+    logText("VL53L0X setup failed!\n");
 #endif
   }
   else {
@@ -1425,7 +1425,7 @@ void setup() {
     tft.println("VL53L0X initialized!");
     delay(2000);
 #else
-    setupAddText("VL53L0X initialized!\n");
+    logText("VL53L0X initialized!\n");
 #endif
     hasVL53L0X = true;
   }
@@ -1433,7 +1433,7 @@ void setup() {
   hasVL53L0X = false;
 #endif
 
-  setupAddText("--- Setup done ---\n");
+  logText("--- Setup done ---\n");
   showInfo();
 
   updateDisplay(true);

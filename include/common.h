@@ -173,8 +173,8 @@ void notifyClients();
 const char* getTopic(topics_t topic);
 const char* getRstReason(esp_reset_reason_t r);
 void handle_event(EventType event);
-void setupAddText(const char *text);
-void setupAddText(String text);
+void logText(const char *text);
+void logText(String text);
 void delayWithDisplayUpdate(unsigned long delayMilli);
 
 #endif

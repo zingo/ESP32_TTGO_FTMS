@@ -30,7 +30,7 @@ int setupWifi() {
   tft.setCursor(20, 40);
   tft.println("Connecting to WiFi");
 #else
-  setupAddText("Connecting to WiFi\n");
+  logText("Connecting to WiFi\n");
   //delayWithDisplayUpdate(1000);
 #endif
 
@@ -44,7 +44,7 @@ int setupWifi() {
     tft.print(".");
 #else
     delayWithDisplayUpdate(500);
-    setupAddText(".");
+    logText(".");
 #endif
     retry_counter++;
     if (retry_counter > maxWifiWaitSeconds) {
@@ -57,7 +57,7 @@ int setupWifi() {
       tft.println("Wifi TIMEOUT");
       delay(2000);
 #else
-      setupAddText("Wifi TIMEOUT\n");
+      logText("Wifi TIMEOUT\n");
 #endif
       return 1;
     }
@@ -80,12 +80,12 @@ int setupWifi() {
   tft.print("IP Addr: "); tft.println(ipAddr);
   delay(2000);
 #else
-  setupAddText("WiFi connected\n");
-  setupAddText("IP address: ");
-  setupAddText(ipAddr.c_str());
-  setupAddText("\nDNS address: ");
-  setupAddText(dnsAddr.c_str());
-  setupAddText("\n");
+  logText("WiFi connected\n");
+  logText("IP address: ");
+  logText(ipAddr.c_str());
+  logText("\nDNS address: ");
+  logText(dnsAddr.c_str());
+  logText("\n");
 #endif
   return 0;
 }
@@ -104,9 +104,9 @@ bool mqttConnect(bool draw) {
     tft.print("Connecting to MQTT server: ");
     tft.println(mqtt_host);
 #else
-    setupAddText("Connecting to MQTT server: ");
-    //setupAddText(mqtt_host);
-    setupAddText("\n");
+    logText("Connecting to MQTT server: ");
+    //logText(mqtt_host);
+    logText("\n");
 #endif
   }
 
@@ -127,7 +127,7 @@ bool mqttConnect(bool draw) {
 #if 0
       tft.println("publish connected...");
 #else
-      setupAddText("publish connected...\n");
+      logText("publish connected...\n");
 #endif
     }
     rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
@@ -144,9 +144,9 @@ bool mqttConnect(bool draw) {
       delay(1500);
       tft.println("publish version & IP");
 #else
-      if (rc) setupAddText("OK\n");
-      else    setupAddText("ERROR\n");
-      setupAddText("publish version & IP\n");
+      if (rc) logText("OK\n");
+      else    logText("ERROR\n");
+      logText("publish version & IP\n");
 #endif
     }
 
@@ -168,9 +168,9 @@ bool mqttConnect(bool draw) {
       tft.setCursor(20, 60);
       tft.println("MQTT CONNECTED");
 #else
-      if (rc) setupAddText("OK\n");
-      else    setupAddText("ERROR\n");
-      setupAddText("MQTT CONNECTED\n");
+      if (rc) logText("OK\n");
+      else    logText("ERROR\n");
+      logText("MQTT CONNECTED\n");
 #endif
     }
     DEBUG_PRINTLN("MQTT CONNECTED");
@@ -187,7 +187,7 @@ bool mqttConnect(bool draw) {
       tft.println("MQTT FAILED");
       delay(1000);
 #else
-      setupAddText("MQTT FAILED\n");
+      logText("MQTT FAILED\n");
 #endif
     }
   }
