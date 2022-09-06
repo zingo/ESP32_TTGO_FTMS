@@ -31,7 +31,6 @@ int setupWifi() {
   tft.println("Connecting to WiFi");
 #else
   logText("Connecting to WiFi\n");
-  //delayWithDisplayUpdate(1000);
 #endif
 
   unsigned retry_counter = 0;
@@ -318,7 +317,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       if (strcmp(value, "incline") == 0)
         speedInclineMode ^= INCLINE; // b'10
 
-      updateHeader();
+      gfxUpdateHeader();
     }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)

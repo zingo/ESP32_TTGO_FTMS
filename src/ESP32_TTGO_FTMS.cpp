@@ -64,14 +64,7 @@
 
 #include "GPIOExtenderAW9523.h"
 
-#include <lvgl.h>
-#include "lv_conf.h"
-/*** Setup screen resolution for LVGL ***/
-static const uint16_t screenWidth = 480;
-static const uint16_t screenHeight = 320;
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf[screenWidth * 10];
-static lv_obj_t * setupTextArea;
+
 
 // Select and uncomment one of the Treadmills below
 //#define TREADMILL_MODEL TAURUS_9_5
@@ -80,10 +73,7 @@ static lv_obj_t * setupTextArea;
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.22";
-
-
-
+const char* VERSION = "0.0.22_lvgl";
 
 #if TARGET_TTGO_T_DISPLAY
 // TTGO T-Display buttons
@@ -103,6 +93,8 @@ static const uint32_t I2C_FREQ = 400000;
 #ifndef NUM_TOUCH_BUTTONS
 #define NUM_TOUCH_BUTTONS 6
 #endif
+
+/*
 //LGFX_Button touchButtons[NUM_TOUCH_BUTTONS];
 LGFX_Button btnSpeedToggle    = LGFX_Button();
 LGFX_Button btnInclineToggle  = LGFX_Button();
@@ -110,6 +102,7 @@ LGFX_Button btnSpeedUp        = LGFX_Button();
 LGFX_Button btnSpeedDown      = LGFX_Button();
 LGFX_Button btnInclineUp      = LGFX_Button();
 LGFX_Button btnInclineDown    = LGFX_Button();
+*/
 // 480 x 320, use full-top-half to show speed, incline, total_dist, and acc. elevation gain
 // maybe draw some nice gauges for speed/incline and odometers for dist and elevation
 // in addition might want to have an elevation profile being displayed
@@ -166,7 +159,9 @@ uint8_t speedInclineMode = SPEED;
 boolean hasMPU6050 = false;
 boolean hasVL53L0X = false;
 boolean hasIrSense = false;
-boolean hasReed    = false;
+boolean hasReed    = true;  // set to false if you don't have added to read Reed (for speed)
+
+boolean setupDone  = false;
 
 #define EVERY_SECOND 1000
 #define WIFI_CHECK   30 * EVERY_SECOND
@@ -183,34 +178,10 @@ Preferences prefs;
 esp_reset_reason_t rr;
 
 // treadmill stats
-#ifndef TREADMILL_MODEL
-  #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
-#elif TREADMILL_MODEL == TAURUS_9_5
-#define TREADMILL_MODEL_NAME "Taurus 9.5"
-const float max_speed   = 22.0;
-const float min_speed   =  0.5;
-const float max_incline = 11.0; // incline/grade in percent(!)
-const float min_incline =  0.0;
-const float speed_interval_min    = 0.1;
-const float incline_interval_min  = 1.0;
-const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
+treadmill * configTreadmill;
 
-#elif TREADMILL_MODEL == NORDICTRACK_12SI
-#define TREADMILL_MODEL_NAME "Northtrack 12.2 Si"
-const float max_speed   = 20.0;
-const float min_speed   =  0.5;
-const float max_incline = 12.0;
-const float min_incline =  0.0;
-const float speed_interval_min    = 0.1;
-const float incline_interval_min  = 0.5;
-const long  belt_distance = 153.3;
-
-#else
-  #error "Unexpected value for TREADMILL_MODEL defined!"
-#endif
-
-const float incline_interval  = incline_interval_min;
-volatile float speed_interval = speed_interval_min;
+volatile float incline_interval  = 0.5;
+volatile float speed_interval = 0.5;
 
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
 volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
@@ -341,10 +312,8 @@ void logText(const char *text)
 {
   // Serial consol
   DEBUG_PRINTF(text);
-  // On screen console
-  lv_textarea_add_text(setupTextArea, text);
-  // Trigger a GFX update
-  updateGFX();
+  gfxLogText(text);
+
 }
 
 void logText(String text)
@@ -358,7 +327,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
   unsigned long currentMilli = timeStartMilli;
   while((currentMilli - timeStartMilli) < delayMilli)
   {
-    updateGFX();
+    gfxUpdateLoopHandler();
     unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ; 
     if (timeLeftMilli >= 5 )
     {
@@ -507,6 +476,17 @@ bool logEvent(EventType event)
   return false;
 }
 
+bool menuEvent(EventType event)
+{
+
+  switch(event)
+  {
+    case EventType::KEY_OK:               gfxShowScreenMain(); return true;
+    case EventType::KEY_BACK:             gfxShowScreenBoot(); return true;
+  }
+  return false;
+}
+
 // A simple event handler, currenly just a call stack, an event queue would be smarter
 // but this solves the problem as a start, not sure it we really have the usecase where
 // we need a queue, lets add it in that case
@@ -519,6 +499,7 @@ void handle_event(EventType event)
   // Currently there is no queue so if Events are translated to new events and call
   // handle_event() to post them take care to not get into loops.
   if (logEvent(event)) return;
+  if (menuEvent(event)) return;
   if (GPIOExtender.pressEvent(event)) return;
 
   DEBUG_PRINTF("handle_event() Cant handle Event:0x%x\n",static_cast<uint32_t>(event));
@@ -542,7 +523,7 @@ void initButton()
       speedInclineMode = MANUAL;
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
-      updateHeader();
+      gfxUpdateHeader();
     }
     else { // button1 short click toggle speed/incline mode
       DEBUG_PRINTLN("Button 1 short click...");
@@ -550,7 +531,7 @@ void initButton()
       speedInclineMode %= _NUM_MODES_;
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
-      updateHeader();
+      gfxUpdateHeader();
     }
 
   });
@@ -622,10 +603,10 @@ void loop_handle_button()
 
 void loop_handle_touch() {
 #if defined (HAS_TOUCH_DISPLAY)
+/*
   int32_t touch_x = 0, touch_y = 0;
 
   tft.getTouch(&touch_x, &touch_y);
-
   // FIXME: switch to button array (touchButtons[]) and cycle through buttons here
   if (btnSpeedToggle.contains(touch_x, touch_y)) btnSpeedToggle.press(true);
   else                                           btnSpeedToggle.press(false);
@@ -651,14 +632,14 @@ void loop_handle_touch() {
     speedInclineMode ^= SPEED; // b'01 toggle bit
     if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
     else                          btnSpeedToggle.drawButton(true);
-    updateHeader();
+    gfxUpdateHeader();
   }
   if (btnInclineToggle.justPressed()) {
     DEBUG_PRINTLN("incline mode toggle!");
     speedInclineMode ^= INCLINE; // b'10
     if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
     else                            btnInclineToggle.drawButton(true);
-    updateHeader();
+    gfxUpdateHeader();
   }
 
   if (btnSpeedUp.justPressed()) {
@@ -690,7 +671,7 @@ void loop_handle_touch() {
   if (btnInclineDown.justReleased()) {
     btnInclineDown.drawButton();
   }
-
+*/
   // if (tft.touch() && ((millis() - touch_timer) > 120)) {
   //   touch_timer = millis();
 
@@ -705,7 +686,7 @@ void loop_handle_touch() {
   // 	speedInclineMode %= _NUM_MODES_;
   // 	DEBUG_PRINT("speedInclineMode=");
   // 	DEBUG_PRINTLN(speedInclineMode);
-  // 	updateHeader();
+  // 	gfxUpdateHeader();
   // 	// reset to manual mode on any touch (as for now)
   //       // if ( speedInclineMode != MANUAL) {
   //       //   kmph = 0.5;
@@ -770,7 +751,7 @@ void IRAM_ATTR reedSwitch_ISR()
     longpauseTime = test_elapsed;
 
     revCount++;
-    workoutDistance += belt_distance;
+    workoutDistance += configTreadmill->belt_distance;
     accumulatorInterval += test_elapsed;
   }
 }
@@ -799,7 +780,7 @@ void speedUp()
   }
 
   kmph += speed_interval;
-  if (kmph > max_speed) kmph = max_speed;
+  if (kmph > configTreadmill->max_speed) kmph = configTreadmill->max_speed;
   DEBUG_PRINT("speed_up, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
@@ -813,7 +794,7 @@ void speedDown()
   }
 
   kmph -= speed_interval;
-  if (kmph < min_speed) kmph = min_speed;
+  if (kmph < configTreadmill->min_speed) kmph = configTreadmill->min_speed;
   DEBUG_PRINT("speed_down, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
@@ -827,7 +808,7 @@ void inclineUp()
   }
 
   incline += incline_interval; // incline in %
-  if (incline > max_incline) incline = max_incline;
+  if (incline > configTreadmill->max_incline) incline = configTreadmill->max_incline;
   angle = atan2(incline, 100);
   grade_deg = angle * 57.296;
   DEBUG_PRINT("incline_up, new incline: ");
@@ -843,7 +824,7 @@ void inclineDown()
   }
 
   incline -= incline_interval;
-  if (incline <= min_incline) incline = min_incline;
+  if (incline <= configTreadmill->min_incline) incline = configTreadmill->min_incline;
   angle = atan2(incline, 100);
   grade_deg = angle * 57.296;
   DEBUG_PRINT("incline_down, new incline: ");
@@ -923,8 +904,8 @@ float getIncline() {
 #endif
   }
 
-  if (incline <= min_incline) incline = min_incline;
-  if (incline > max_incline)  incline = max_incline;
+  if (incline <= configTreadmill->min_incline) incline = configTreadmill->min_incline;
+  if (incline > configTreadmill->max_incline)  incline = configTreadmill->max_incline;
 
   //DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, incline);
 
@@ -937,8 +918,8 @@ float getIncline() {
 void setSpeed(float speed)
 {
   kmph = speed;
-  if (speed > max_speed) kmph = max_speed;
-  if (speed < min_speed) kmph = min_speed;
+  if (speed > configTreadmill->max_speed) kmph = configTreadmill->max_speed;
+  if (speed < configTreadmill->min_speed) kmph = configTreadmill->min_speed;
 
   DEBUG_PRINT("setSpeed: ");
   DEBUG_PRINTLN(kmph);
@@ -1080,13 +1061,15 @@ void showInfo() {
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
 #else
-  String intoText = String("ESP32 FTMS - ") + VERSION + String("\n") + TREADMILL_MODEL_NAME + String("\n");
+  String intoText = String("ESP32 FTMS - ") + VERSION + String("\n");
   logText(intoText.c_str());
-  intoText = String("Speed[") + min_speed + String(", ") + max_speed + String("]\n");
+  std::string intoText2 = configTreadmill->getName();
+  logText(intoText2.c_str());
+  intoText = String("\nSpeed[") + configTreadmill->min_speed + String(", ") + configTreadmill->max_speed + String("]\n");
   logText(intoText.c_str());
-  intoText = String("Incline[") + min_incline + String(", ") + max_incline + String("]\n");
+  intoText = String("Incline[") + configTreadmill->min_incline + String(", ") + configTreadmill->max_incline + String("]\n");
   logText(intoText.c_str());
-  intoText = String("Dist/REED:") + belt_distance + String("mm\n");
+  intoText = String("Dist/REED:") + configTreadmill->belt_distance + String("mm\n");
   logText(intoText.c_str());
   intoText = String("REED:") + hasReed + String("\n");
   logText(intoText.c_str());
@@ -1124,132 +1107,6 @@ static void initGPIOExtender(void) {
   logText("GPIOExtender Setup Done");
 }
 
-/* Counter button event handler */
-static void counter_event_handler(lv_event_t * e)
-{
-  lv_event_code_t code = lv_event_get_code(e);
-  lv_obj_t *btn = lv_event_get_target(e);
-  if (code == LV_EVENT_CLICKED)
-  {
-    static uint8_t cnt = 0;
-    cnt++;
-
-    /*Get the first child of the button which is the label and change its text*/
-    lv_obj_t *label = lv_obj_get_child(btn, 0);
-    lv_label_set_text_fmt(label, "Button: %d", cnt);
-    LV_LOG_USER("Clicked");
-    Serial.println("Clicked");
-  }
-}
-
-/* Toggle button event handler */
-static void toggle_event_handler(lv_event_t * e)
-{
-  lv_event_code_t code = lv_event_get_code(e);
-  if (code == LV_EVENT_VALUE_CHANGED)
-  {
-    LV_LOG_USER("Toggled");
-    Serial.println("Toggled");
-  }
-}
-
-/*** Display callback to flush the buffer to screen ***/
-void displayFlushCallBack(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
-{
-  uint32_t w = (area->x2 - area->x1 + 1);
-  uint32_t h = (area->y2 - area->y1 + 1);
-
-  tft.startWrite();
-  tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.pushPixels((uint16_t *)&color_p->full, w * h, true);
-  tft.endWrite();
-
-  lv_disp_flush_ready(disp);
-}
-
-/*** Touchpad callback to read the touchpad ***/
-void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
-{
-  uint16_t touchX, touchY;
-  bool touched = tft.getTouch(&touchX, &touchY);
-
-  if (!touched)
-  {
-    data->state = LV_INDEV_STATE_REL;
-  }
-  else
-  {
-    data->state = LV_INDEV_STATE_PR;
-
-    /*Set the coordinates*/
-    data->point.x = touchX;
-    data->point.y = touchY;
-
-    // Serial.printf("Touch (x,y): (%03d,%03d)\n",touchX,touchY );
-  }
-}
-
-void showScreenBoot() {
-  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
-  lv_obj_set_pos(setupTextArea, 0, 0);
-  lv_obj_set_size(setupTextArea, lv_pct(100), lv_pct(100));
-}
-
-void showScreenMain() {
-  lv_obj_add_state(setupTextArea, LV_STATE_FOCUSED);  // show "cursur"
-  lv_obj_set_pos(setupTextArea, 0, lv_pct(50));
-  lv_obj_set_size(setupTextArea, lv_pct(50), lv_pct(50));
-}
-
-
-void initGFX() {
-  tft.init();
-  lv_init();
-
-  tft.setRotation(1); // 3
-#ifdef TFT_ROTATE
-  tft.setRotation(TFT_ROTATE);
-#endif
-
-#if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
-  if (tft.touch()) {
-    tft.setTextFont(4);
-    tft.setCursor(20, tft.height()/2);
-    tft.println("Press corner near arrow to callibrate touch");
-    tft.setCursor(0, 0);
-    tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
-  }
-#endif
-#ifdef TFT_BL
-  if (TFT_BL > 0) {
-    pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
-  }
-#endif
-
-  /* LVGL : Setting up buffer to use for display */
-  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
-
-  /*** LVGL : Setup & Initialize the display device driver ***/
-  static lv_disp_drv_t disp_drv;
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.hor_res = screenWidth;
-  disp_drv.ver_res = screenHeight;
-  disp_drv.flush_cb = displayFlushCallBack;
-  disp_drv.draw_buf = &draw_buf;
-  lv_disp_drv_register(&disp_drv);
-
-  /*** LVGL : Setup & Initialize the input device driver ***/
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = touchpad_read;
-  lv_indev_drv_register(&indev_drv);
-
-  delayWithDisplayUpdate(3000);
-  setupTextArea = lv_textarea_create(lv_scr_act());
-}
-
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -1262,6 +1119,19 @@ void setup() {
   MQTTDEVICEID += String(mac_addr[5], HEX);
   setupMqttTopic(MQTTDEVICEID);
 
+  // Setup treadmill config
+#ifndef TREADMILL_MODEL
+  #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
+#elif TREADMILL_MODEL == TAURUS_9_5
+  configTreadmill = new treadmillTaurus9_5();
+#elif TREADMILL_MODEL == NORDICTRACK_12SI
+  configTreadmill = new treadmillNorthtrack12_2_Si();
+#else
+  #error "Unexpected value for TREADMILL_MODEL defined!"
+#endif
+
+  incline_interval  = configTreadmill->incline_interval_min;
+  speed_interval = configTreadmill->speed_interval_min;
   // initial min treadmill speed
   kmph = 0.5;
   incline = 0;
@@ -1270,17 +1140,10 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-#if TREADMILL_MODEL == NORDICTRACK_12SI
-  hasReed          = true;
-#endif
-#if TREADMILL_MODEL == TAURUS_9_5
-  hasReed          = true;
-#endif
-
   initButton();
 
-  initGFX();
-  showScreenBoot();
+  gfxInit();
+  gfxShowScreenBoot();
 
 #if 0
   tft.fillScreen(TFT_BLACK);
@@ -1293,6 +1156,7 @@ void setup() {
 #endif
 
 #ifdef TARGET_WT32_SC01
+/*
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
   //     touchButtons[n] = LGFX_Button();
   // }
@@ -1305,6 +1169,7 @@ void setup() {
   btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
   //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
   //modeButton.drawButton();
+*/
 #endif
 
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
@@ -1326,6 +1191,7 @@ void setup() {
   initSPIFFS();
 
   isWifiAvailable = setupWifi() ? false : true;
+  gfxUpdateHeader();
 
   if (isWifiAvailable) {
     DEBUG_PRINTLN("Init Webserver");
@@ -1338,6 +1204,7 @@ void setup() {
     isMqttAvailable = mqttConnect(true);
     delayWithDisplayUpdate(2000);
   }
+  gfxUpdateHeader();
 
 #if 0
   tft.fillScreen(TFT_BLACK);
@@ -1439,11 +1306,13 @@ void setup() {
   logText("--- Setup done ---\n");
   showInfo();
 
-  updateDisplay(true);
+  //updateDisplay(true);
 
-  showScreenMain();
+  gfxShowScreenMain();
+  gfxUpdateHeader();
 
   setTime(0,0,0,0,0,0);
+  setupDone = true;
 }
 
 void loop_handle_WIFI() {
@@ -1462,7 +1331,7 @@ void loop_handle_WIFI() {
     // connection was lost and now got reconnected ...
     isWifiAvailable = true;
     wifi_reconnect_counter++;
-    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+    gfxUpdateWIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
   if (!isMqttAvailable && isWifiAvailable)
   {
@@ -1474,7 +1343,7 @@ void loop_handle_WIFI() {
     {
       mqtt_reconnect_counter++;
       isMqttAvailable = mqttConnect(true);
-      updateDisplay(true);
+      //TODO updateDisplay(true);
     }
   }
 }
@@ -1484,30 +1353,16 @@ void loop_handle_BLE() {
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
     DEBUG_PRINTLN("BT Client connected!");
-    updateBTConnectionStatus(bleClientConnectedPrev);
+    gfxUpdateBTConnectionStatus(bleClientConnectedPrev);
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     DEBUG_PRINTLN("BT Client disconnected!");
-    updateBTConnectionStatus(bleClientConnectedPrev);
+    gfxUpdateBTConnectionStatus(bleClientConnectedPrev);
   }
 }
 
-void updateGFX()
-{
-  lv_timer_handler();
-}
-
-
-//#define SHOW_FPS
-
 void loop() {
-#ifdef SHOW_FPS
-  static int fps;
-  ++fps;
-  updateDisplay(false);
-#endif
-
 #ifndef NO_MPU6050
   mpu.update();
 #endif
@@ -1517,7 +1372,7 @@ void loop() {
   loop_handle_touch();
   loop_handle_WIFI();
   loop_handle_BLE();
-  updateGFX();
+  gfxUpdateLoopHandler();
 
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
@@ -1534,11 +1389,6 @@ void loop() {
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
-
-#ifdef SHOW_FPS
-    show_FPS(fps);
-    fps = 0;
-#endif
 
     if (speedInclineMode & INCLINE) {
       incline = getIncline(); // sets global 'angle' and 'incline' variable
@@ -1566,7 +1416,7 @@ void loop() {
           //rpmaccumulatorInterval = 0;
           //accumulator4 = 0;  // average rpm of last 4 samples
         }
-        mps = belt_distance * (rpm) / (60 * 1000); // meter per sec
+        mps = configTreadmill->belt_distance * (rpm) / (60 * 1000); // meter per sec
         kmph = mps * 3.6;                          // km per hour
         total_distance = workoutDistance / 1000;   // conv mm to meter
       }
@@ -1595,9 +1445,8 @@ void loop() {
     //client.publish(getTopic(MQTT_TOPIC_DIST),    readDist().c_str());
     //client.publish(getTopic(MQTT_TOPIC_ELEGAIN), readElevation().c_str());
 
-#ifndef SHOW_FPS
-    updateDisplay(false);
-#endif
+    //updateDisplay(false);
+    gfxUpdateDisplay();
     notifyClients();
 
     uint8_t treadmillData[34] = {};

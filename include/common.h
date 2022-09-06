@@ -1,9 +1,9 @@
-#ifndef _ESP32_TTGO_FTMS_H_
-#define _ESP32_TTGO_FTMS_H_
+#pragma once
 
 #define DEBUG 1
 //#define DEBUG_MQTT 1
 #include "debug_print.h"
+#include "treadmill.h"
 //#include "wifi_mqtt_creds.h"
 
 #include <Arduino.h>
@@ -34,6 +34,7 @@ extern AsyncWebSocket ws;
 extern LGFX tft;
 
 #ifdef HAS_TOUCH_DISPLAY
+/*
 extern LGFX_Button touchButtons[];
 extern LGFX_Button btnSpeedToggle;
 extern LGFX_Button btnInclineToggle;
@@ -41,6 +42,7 @@ extern LGFX_Button btnSpeedUp;
 extern LGFX_Button btnSpeedDown;
 extern LGFX_Button btnInclineUp;
 extern LGFX_Button btnInclineDown;
+*/
 #endif
 
 #else
@@ -89,7 +91,7 @@ enum SensorModeFlags {
 		      _NUM_MODES_ = 4
 };
 
-
+extern treadmill * configTreadmill; // TODO save used treadmill in some storage area and add runtime config for it
 
 extern float  kmph;
 extern float  incline;
@@ -97,8 +99,8 @@ extern double total_distance;
 extern double elevation_gain;
 extern uint8_t speedInclineMode;
 
+extern boolean setupDone;
 extern bool bleClientConnected;
-
 extern unsigned long wifi_reconnect_counter;
 
 extern esp_reset_reason_t rr;
@@ -156,16 +158,21 @@ void speedUp();
 void inclineUp();
 void inclineDown();
 
-void updateDisplay(bool clear);
-void updateHeader();
 void initAsyncWebserver();
 void initWebSocket();
 String getWifiIpAddr();
-void show_FPS(int fps);
-void showSpeedInclineMode(uint8_t mode);
-void updateBTConnectionStatus(bool connected);
-void show_WIFI(const unsigned long reconnect_counter, const String &ip);
-String getWifiIpAddr();
+
+void gfxInit();
+void gfxUpdateLoopHandler();
+void gfxUpdateDisplay(); // called once per second
+void gfxLogText(const char *text);
+void gfxUpdateBTConnectionStatus(bool connected);
+void updateDisplay(bool clear);
+void gfxUpdateHeader();
+void gfxUpdateWIFI(const unsigned long reconnect_counter, const String &ip);
+void gfxShowScreenBoot();
+void gfxShowScreenMain();
+
 void setSpeedInterval(float interval);
 int setupWifi();
 bool mqttConnect( bool draw);
@@ -176,5 +183,3 @@ void handle_event(EventType event);
 void logText(const char *text);
 void logText(String text);
 void delayWithDisplayUpdate(unsigned long delayMilli);
-void updateGFX();
-#endif
