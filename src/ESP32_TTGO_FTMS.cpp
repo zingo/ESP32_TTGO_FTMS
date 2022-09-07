@@ -344,15 +344,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 
 
 void initBLE() {
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("initBLE");
-#else
   logText("initBLE\n");
-#endif
 
   BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
   // create BLE Server, set callback for connect/disconnect
@@ -395,51 +387,16 @@ void initBLE() {
 
 
 void initSPIFFS() {
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("initSPIFFS");
-#else
   logText("initSPIFFS\n");
-//  delayWithDisplayUpdate(2000);
-#endif
 
   if (!SPIFFS.begin(true)) { // true = formatOnFail
-    DEBUG_PRINTLN("Cannot mount SPIFFS volume...");
-#if 0
-    tft.setTextColor(TFT_RED);
-    tft.println("FAILED!!!");
-    delay(5000);
-#else
-  logText("FAILED!!!\n");
-  delayWithDisplayUpdate(5000);
-#endif
-
-    while (1) {
-      bool on = millis() % 200 < 50;  // onboard_led.on = millis() % 200 < 50;
-      // onboard_led.update();
-      if (on)
-        tft.fillScreen(TFT_RED);
-      else
-        tft.fillScreen(TFT_BLACK);
-    }
+    logText("Cannot mount SPIFFS volume FAILED!!!\n");
   }
   else {
     DEBUG_PRINTLN("SPIFFS Setup Done");
   }
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("initSPIFFS Done!");
-  delay(2000);
-#else
+
   logText("initSPIFFS Done!\n");
-  //delayWithDisplayUpdate(2000);
-#endif
 }
 
 
@@ -603,124 +560,6 @@ void loop_handle_button()
 
 void loop_handle_touch() {
 #if defined (HAS_TOUCH_DISPLAY)
-/*
-  int32_t touch_x = 0, touch_y = 0;
-
-  tft.getTouch(&touch_x, &touch_y);
-  // FIXME: switch to button array (touchButtons[]) and cycle through buttons here
-  if (btnSpeedToggle.contains(touch_x, touch_y)) btnSpeedToggle.press(true);
-  else                                           btnSpeedToggle.press(false);
-
-  if (btnInclineToggle.contains(touch_x, touch_y)) btnInclineToggle.press(true);
-  else                                             btnInclineToggle.press(false);
-
-  if (btnSpeedUp.contains(touch_x, touch_y)) btnSpeedUp.press(true);
-  else                                       btnSpeedUp.press(false);
-
-  if (btnSpeedDown.contains(touch_x, touch_y)) btnSpeedDown.press(true);
-  else                                         btnSpeedDown.press(false);
-
-  if (btnInclineUp.contains(touch_x, touch_y)) btnInclineUp.press(true);
-  else                                         btnInclineUp.press(false);
-
-  if (btnInclineDown.contains(touch_x, touch_y)) btnInclineDown.press(true);
-  else                                           btnInclineDown.press(false);
-
-
-  if (btnSpeedToggle.justPressed()) {
-    DEBUG_PRINTLN("speed mode toggle!");
-    speedInclineMode ^= SPEED; // b'01 toggle bit
-    if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
-    else                          btnSpeedToggle.drawButton(true);
-    gfxUpdateHeader();
-  }
-  if (btnInclineToggle.justPressed()) {
-    DEBUG_PRINTLN("incline mode toggle!");
-    speedInclineMode ^= INCLINE; // b'10
-    if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
-    else                            btnInclineToggle.drawButton(true);
-    gfxUpdateHeader();
-  }
-
-  if (btnSpeedUp.justPressed()) {
-    btnSpeedUp.drawButton(true);
-    speedUp();
-  }
-  if (btnSpeedUp.justReleased()) {
-    btnSpeedUp.drawButton();
-  }
-  if (btnSpeedDown.justPressed()) {
-    btnSpeedDown.drawButton(true);
-    speedDown();
-  }
-  if (btnSpeedDown.justReleased()) {
-    btnSpeedDown.drawButton();
-  }
-
-  if (btnInclineUp.justPressed()) {
-    btnInclineUp.drawButton(true);
-    inclineUp();
-  }
-  if (btnInclineUp.justReleased()) {
-    btnInclineUp.drawButton();
-  }
-  if (btnInclineDown.justPressed()) {
-    btnInclineDown.drawButton(true);
-    inclineDown();
-  }
-  if (btnInclineDown.justReleased()) {
-    btnInclineDown.drawButton();
-  }
-*/
-  // if (tft.touch() && ((millis() - touch_timer) > 120)) {
-  //   touch_timer = millis();
-
-  //   if (tft.getTouch(&touch_x, &touch_y)) {
-  //     DEBUG_PRINTF("touch: x=%.3d y=%.3d\n", touch_x, touch_y);
-
-  //     if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	  (touch_y >=  50) && (touch_y <= 80)) {
-  // 	touch_b1 = true;
-
-  // 	speedInclineMode += 1;
-  // 	speedInclineMode %= _NUM_MODES_;
-  // 	DEBUG_PRINT("speedInclineMode=");
-  // 	DEBUG_PRINTLN(speedInclineMode);
-  // 	gfxUpdateHeader();
-  // 	// reset to manual mode on any touch (as for now)
-  //       // if ( speedInclineMode != MANUAL) {
-  //       //   kmph = 0.5;
-  //       //   incline = 0;
-  //       //   grade_deg = 0;
-  //       //   angle = 0;
-  //       //   elevation = 0;
-  //       //   elevation_gain = 0;
-  //       //   speedInclineMode = MANUAL;
-  //       // }
-  //     }
-  //     //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
-  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	       (touch_y >=  90) && (touch_y <= 120)) {
-  // 	DEBUG_PRINTLN("Touch: Button 2 inclineUp()");
-  // 	inclineUp();
-  //     }
-  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	       (touch_y >= 130) && (touch_y <= 150)) {
-  // 	DEBUG_PRINTLN("Touch: Button 3 inclineDown()");
-  // 	inclineDown();
-  //     }
-  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
-  // 	       (touch_y >=  90) && (touch_y <= 120)) {
-  // 	DEBUG_PRINTLN("Touch: Button 4 speedUp()");
-  // 	speedUp();
-  //     }
-  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
-  // 	       (touch_y >= 130) && (touch_y <= 150)) {
-  // 	DEBUG_PRINTLN("Touch: Button 5 speedDown()");
-  // 	speedDown();
-  //     }
-  //   }
-  // }
 #endif
 }
 
@@ -1047,20 +886,6 @@ const char* getRstReason(esp_reset_reason_t r) {
 }
 
 void showInfo() {
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
-  tft.setTextFont(2);
-  tft.setCursor(5, 5);
-  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
-              VERSION,TREADMILL_MODEL_NAME,
-              min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
-  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
-              VERSION,TREADMILL_MODEL_NAME,
-              min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
-#else
   String intoText = String("ESP32 FTMS - ") + VERSION + String("\n");
   logText(intoText.c_str());
   std::string intoText2 = configTreadmill->getName();
@@ -1081,7 +906,6 @@ void showInfo() {
   logText(intoText.c_str());
   intoText = String("GPIOExtender(AW9523):") + GPIOExtender.isAvailable() + String("\n");
   logText(intoText.c_str());
-#endif
 
 }
 
@@ -1145,32 +969,7 @@ void setup() {
   gfxInit();
   gfxShowScreenBoot();
 
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("Setup Started");
-#else
   logText("Setup Started\n");
-#endif
-
-#ifdef TARGET_WT32_SC01
-/*
-  // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
-  //     touchButtons[n] = LGFX_Button();
-  // }
-  // fixme: ...
-  btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
-  btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
-  btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
-  btnSpeedDown     .initButtonUL(&tft, btnSpeedDown_X,      btnSpeedDown_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
-  btnInclineUp     .initButtonUL(&tft, btnInclineUp_X,      btnInclineUp_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
-  btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
-  //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
-  //modeButton.drawButton();
-*/
-#endif
 
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
@@ -1206,97 +1005,42 @@ void setup() {
   }
   gfxUpdateHeader();
 
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("mqtt setup Done!");
-  delay(2000);
-#else
   logText("mqtt setup Done!\n");
-//  delayWithDisplayUpdate(2000);  // remove?? Msg in log no need to wait
-#endif
 
 #ifndef NO_MPU6050
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setCursor(20, 40);
-  tft.println("init MPU6050");
-#else
   logText("init MPU6050\n");
-#endif
 
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
   if (status != 0) {
-#if 0
-    tft.setTextColor(TFT_RED);
-    tft.println("MPU6050 setup failed!");
-    tft.println(status);
-    delay(2000);
-#else
-  logText("MPU6050 setup failed!\n");
-  //lv_textarea_add_text(textArea, status);
-  //delayWithDisplayUpdate(2000);
-#endif
+    logText("MPU6050 setup failed!\n");
   }
   else {
-    DEBUG_PRINTLN(F("Calculating offsets, do not move MPU6050"));
-#if 0
-    tft.setTextFont(2);
-    tft.println("Calc offsets, do not move MPU6050 (3sec)");
-#else
     logText("Calc offsets, do not move MPU6050 (3sec)\n");
-#endif
 
     mpu.calcOffsets(); // gyro and accel.
     delayWithDisplayUpdate(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
-#if 0
-    tft.setTextColor(TFT_GREEN);
-    tft.println("MPU6050 OK!");
-    delay(2000);
-#else
+
     logText("MPU6050 OK!\n");
-#endif
   }
 #else
   hasMPU6050 = false;
 #endif
 #ifndef NO_VL53L0X
-#if 0
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setCursor(20, 40);
-  tft.println("init VL53L0X");
-#else
   logText("init VL53L0X\n");
-#endif
+
 
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
-#if 0
-    tft.setTextColor(TFT_RED);
-    tft.println("VL53L0X setup failed!");
-    delay(2000);
-#else
+
     logText("VL53L0X setup failed!\n");
-#endif
   }
   else {
-    DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
-#if 0
-    tft.setTextColor(TFT_GREEN);
-    tft.println("VL53L0X initialized!");
-    delay(2000);
-#else
     logText("VL53L0X initialized!\n");
-#endif
     hasVL53L0X = true;
   }
 #else
@@ -1305,8 +1049,6 @@ void setup() {
 
   logText("--- Setup done ---\n");
   showInfo();
-
-  //updateDisplay(true);
 
   gfxShowScreenMain();
   gfxUpdateHeader();
@@ -1343,7 +1085,6 @@ void loop_handle_WIFI() {
     {
       mqtt_reconnect_counter++;
       isMqttAvailable = mqttConnect(true);
-      //TODO updateDisplay(true);
     }
   }
 }
@@ -1445,7 +1186,6 @@ void loop() {
     //client.publish(getTopic(MQTT_TOPIC_DIST),    readDist().c_str());
     //client.publish(getTopic(MQTT_TOPIC_ELEGAIN), readElevation().c_str());
 
-    //updateDisplay(false);
     gfxUpdateDisplay();
     notifyClients();
 

@@ -59,31 +59,6 @@ extern TFT_eSPI tft;
 #endif
 
 
-//const int BORDER = 2;
-//const int HEADER = 16; // percent
-//const int HEADER_PX = HEADER * tft.height();
-//const int X_05 = tft.width()  / 2;
-//const int Y_05 = tft.height() / 2;
-
-#define TFT_SETUP_FONT_SIZE 4
-#define TFT_STATS_FONT_SIZE 2
-
-#define CIRCLE_SPEED_X_POS   188
-#define CIRCLE_INCLINE_X_POS 208
-#define CIRCLE_BT_STAT_X_POS 227
-
-#define CIRCLE_SPEED_Y_POS    11
-#define CIRCLE_INCLINE_Y_POS  11
-#define CIRCLE_BT_STAT_Y_POS  11
-#define CIRCLE_Y_POS          11
-#define CIRCLE_RADIUS          8
-
-
-// TARGET_WT32_SC01 alternate touchscreen layout
-#if TARGET_WT32_SC01
-
-#endif
-
 enum SensorModeFlags {
 		      MANUAL  = 0,
 		      SPEED   = 1,
@@ -145,7 +120,6 @@ enum class EventType {
   TREADMILL_INC_UP,
 };
 
-
 String readHour();
 String readMinute();
 String readSecond();
@@ -167,7 +141,6 @@ void gfxUpdateLoopHandler();
 void gfxUpdateDisplay(); // called once per second
 void gfxLogText(const char *text);
 void gfxUpdateBTConnectionStatus(bool connected);
-void updateDisplay(bool clear);
 void gfxUpdateHeader();
 void gfxUpdateWIFI(const unsigned long reconnect_counter, const String &ip);
 void gfxShowScreenBoot();
