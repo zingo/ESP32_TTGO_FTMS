@@ -1104,11 +1104,28 @@ void loop_handle_BLE() {
 }
 
 void loop() {
+  // MPU6050 and GPIOExtender use twowire i2c driver and LovyanGFX has it's own
+  // This makes the twowire collide in some way and you get a 1s delay after each touch
+  // To solve this setup collition of the i2c HW I2C_0.begin/end is put around the twowire code
+  // this made the loop go down from 713 loops per secund to 470 loops per second. 
+  // This should still be fine for what we do but it would be nice to avoid this.
+  // One "ugly" soulition is to hack in a "put i2c into read mode" in the end of LovyanGFX code
+  // writing to the I2C when the touch is released but as that is a kind of ugly hack and this is kind of nicer.
+  // TODO: Maybe create a simple twowire interface for only the part needed by MPU6050_light.h that just call LovyanGFX I2C functions
+  //       and port over our GPIOExtender to also use it, so it's only one driver accessing it.
+  I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
+
 #ifndef NO_MPU6050
-  mpu.update();
+  if (hasMPU6050) {
+    mpu.update();    //             <--- on touch it seem to spend 1s here  if code removed with if (hasMPU6050) is just get 1s later in one of the loop_handle_BLE
+                     //             seems like there is something triggering a yeald and some touch code kicks in and take 1s?
+  }
 #endif
 
   GPIOExtender.loopHandler();
+
+  I2C_0.end();
+
   loop_handle_button();
   loop_handle_touch();
   loop_handle_WIFI();
