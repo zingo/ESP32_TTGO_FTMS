@@ -1117,8 +1117,7 @@ void loop() {
 
 #ifndef NO_MPU6050
   if (hasMPU6050) {
-    mpu.update();    //             <--- on touch it seem to spend 1s here  if code removed with if (hasMPU6050) is just get 1s later in one of the loop_handle_BLE
-                     //             seems like there is something triggering a yeald and some touch code kicks in and take 1s?
+    mpu.update(); 
   }
 #endif
 
