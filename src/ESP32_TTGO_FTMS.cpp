@@ -155,11 +155,11 @@ volatile boolean touch_b2 = false;
 volatile boolean touch_b3 = false;
 
 
-uint8_t speedInclineMode = SPEED;
 boolean hasMPU6050 = false;
 boolean hasVL53L0X = false;
 boolean hasIrSense = false;
 boolean hasReed    = true;  // set to false if you don't have added to read Reed (for speed)
+uint8_t speedInclineMode = hasReed ? SPEED : MANUAL;
 
 boolean setupDone  = false;
 
@@ -506,22 +506,25 @@ void initButton()
   btn2.setTapHandler([](Button2& b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 2 TapHandler");
-    if (time > 3000) { // > 3sec enters config menu
+    if (time > 3000)
+    { // > 3sec enters config menu
       //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
     }
-    else if (time > 500) {
+    else if (time > 500)
+    {
       DEBUG_PRINTLN("long (>500ms) click...");
       if ((speedInclineMode & SPEED) == 0)
 	      speedDown();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineDown();
+        inclineDown();
     }
-    else {
+    else
+    {
       DEBUG_PRINTLN("short click...");
       if ((speedInclineMode & SPEED) == 0)
-	speedUp();
+        speedUp();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineUp();
+        inclineUp();
     }
   });
 #endif
@@ -555,11 +558,6 @@ void loop_handle_button()
 #endif
 #ifdef BUTTON_3
     btn3.loop();
-#endif
-}
-
-void loop_handle_touch() {
-#if defined (HAS_TOUCH_DISPLAY)
 #endif
 }
 
@@ -1109,6 +1107,9 @@ void loop() {
   // To solve this setup collition of the i2c HW I2C_0.begin/end is put around the twowire code
   // this made the loop go down from 713 loops per secund to 470 loops per second. 
   // This should still be fine for what we do but it would be nice to avoid this.
+  // as of 2022-10-03 a patch that could fix this went in LovyanGFX 
+  // https://github.com/lovyan03/LovyanGFX/commit/9de99d25496413f133ce3c057fa3edb60148f523
+  // but a test with the branch https://github.com/lovyan03/LovyanGFX.git#develop still gives a 1s delay.
   // One "ugly" soulition is to hack in a "put i2c into read mode" in the end of LovyanGFX code
   // writing to the I2C when the touch is released but as that is a kind of ugly hack and this is kind of nicer.
   // TODO: Maybe create a simple twowire interface for only the part needed by MPU6050_light.h that just call LovyanGFX I2C functions
@@ -1126,7 +1127,6 @@ void loop() {
   I2C_0.end();
 
   loop_handle_button();
-  loop_handle_touch();
   loop_handle_WIFI();
   loop_handle_BLE();
   gfxUpdateLoopHandler();

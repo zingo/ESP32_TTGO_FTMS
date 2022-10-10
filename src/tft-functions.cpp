@@ -36,6 +36,8 @@ static lv_obj_t * lvLabelDistance = nullptr;
 static lv_obj_t * lvLabelElevation = nullptr;
 static lv_obj_t * gfxLvSpeedMeter = nullptr;  // Show speed
 static lv_obj_t * gfxLvInclineMeter = nullptr;  // Show Incline
+static lv_obj_t * gfxLvSwitchSpeedControlMode = nullptr;
+static lv_obj_t * gfxLvSwitchInclineControlMode = nullptr;
 static lv_meter_indicator_t *gfxLvSpeedMeterIndicator = nullptr;
 static lv_meter_indicator_t *gfxLvInclineMeterIndicator = nullptr;
 
@@ -164,14 +166,14 @@ static void gfxLvSwitchSpeedEventhandler(lv_event_t * e)
     if(lv_obj_has_state(obj, LV_STATE_CHECKED))
     {
       //On
-      speedInclineMode |= SPEED;
-      logText("speedInclineMode |= SPEED\n");
+      speedInclineMode &= ~SPEED;
+      logText("speedInclineMode &= ~SPEED\n");
     }
     else
     {
       //Off
-      speedInclineMode &= ~SPEED;
-      logText("speedInclineMode &= ~SPEED\n");
+      speedInclineMode |= SPEED;
+      logText("speedInclineMode |= SPEED\n");
     }
     gfxUpdateHeader();
   }
@@ -185,14 +187,14 @@ static void gfxLvSwitchInclineEventhandler(lv_event_t * e)
     if(lv_obj_has_state(obj, LV_STATE_CHECKED))
     {
       //On
-      speedInclineMode |= INCLINE;
-      logText("speedInclineMode |= INCLINE\n");
+      speedInclineMode &= ~INCLINE;
+      logText("speedInclineMode &= ~INCLINE\n");
     }
     else
     {
       //Off
-      speedInclineMode &= ~INCLINE;
-      logText("speedInclineMode &= ~INCLINE\n");
+      speedInclineMode |= INCLINE;
+      logText("speedInclineMode |= INCLINE\n");
     }
     gfxUpdateHeader();
   }
@@ -281,14 +283,13 @@ static lv_obj_t * createScreenMain() {
   lv_obj_align(gfxLvSpeedMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
   gfxLvSpeedMeterIndicator = setupMeter(gfxLvSpeedMeter, configTreadmill->min_speed, configTreadmill->max_speed, 6, 16);
 
-  lv_obj_t * sw1 = lv_switch_create(obj);
-  //lv_obj_align_to(sw1, obj, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_size(sw1, 40, 30);
-  lv_obj_add_event_cb(sw1, gfxLvSwitchSpeedEventhandler, LV_EVENT_ALL, NULL);
-  lv_obj_add_state(sw1, LV_STATE_CHECKED);  //TODO use variables
+  gfxLvSwitchSpeedControlMode = lv_switch_create(obj);
+  //lv_obj_align_to(gfxLvSwitchSpeedControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_set_size(gfxLvSwitchSpeedControlMode, 40, 30);
+  lv_obj_add_event_cb(gfxLvSwitchSpeedControlMode, gfxLvSwitchSpeedEventhandler, LV_EVENT_ALL, NULL);
 
   lvLabelSpeed = lv_label_create(obj);
-  lv_obj_align_to(lvLabelSpeed, sw1, LV_ALIGN_TOP_RIGHT, 30, 0);
+  lv_obj_align_to(lvLabelSpeed, gfxLvSwitchSpeedControlMode, LV_ALIGN_TOP_RIGHT, 30, 0);
   lv_label_set_text(lvLabelSpeed, "Speed: --.-- km/h");
 
   
@@ -331,14 +332,13 @@ static lv_obj_t * createScreenMain() {
   lv_obj_align(gfxLvInclineMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
   gfxLvInclineMeterIndicator = setupMeter(gfxLvInclineMeter, configTreadmill->min_incline, configTreadmill->max_incline, 2, 7);
 
-  lv_obj_t * sw2 = lv_switch_create(obj);
-//  lv_obj_align_to(sw2, obj, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_size(sw2, 40, 30);
-  lv_obj_add_event_cb(sw2, gfxLvSwitchInclineEventhandler, LV_EVENT_ALL, NULL);
-  //lv_obj_add_state(sw2, LV_STATE_CHECKED); //TODO use variables
+  gfxLvSwitchInclineControlMode = lv_switch_create(obj);
+//  lv_obj_align_to(gfxLvSwitchInclineControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_set_size(gfxLvSwitchInclineControlMode, 40, 30);
+  lv_obj_add_event_cb(gfxLvSwitchInclineControlMode, gfxLvSwitchInclineEventhandler, LV_EVENT_ALL, NULL);
 
   lvLabelIncline = lv_label_create(obj);
-  lv_obj_align_to(lvLabelIncline, sw2, LV_ALIGN_TOP_RIGHT, 30, 0);
+  lv_obj_align_to(lvLabelIncline, gfxLvSwitchInclineControlMode, LV_ALIGN_TOP_RIGHT, 30, 0);
   lv_label_set_text(lvLabelIncline, "Incline: --.- %");
 
   buttonObj = lv_obj_create(obj);
@@ -548,21 +548,15 @@ void gfxUpdateDisplay()
     {
       lv_chart_set_next_value(lvGraph, lvGraphSpeedSerie, kmph);
       lv_chart_set_next_value(lvGraph, lvGraphInclineSerie, incline);
-      if (graphCircular)
-      {
         uint16_t nextPointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
-        nextPointID = (nextPointID+1) % graphDataPoints;
         lvGraphSpeedSerie->y_points[nextPointID] = LV_CHART_POINT_NONE;
         lvGraphInclineSerie->y_points[nextPointID] = LV_CHART_POINT_NONE;
-      }
+      //}
     }
     count = 0;
   }
-  uint16_t updatePointID = graphDataPoints;
-  if (graphCircular)
-  {
-    updatePointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
-  }
+  uint16_t updatePointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
+  updatePointID = (updatePointID -1) % graphDataPoints;
   lvGraphSpeedSerie->y_points[updatePointID] = kmph;
   lvGraphInclineSerie->y_points[updatePointID] = incline;
   lv_chart_refresh(lvGraph); /*Required after direct set*/
@@ -592,20 +586,24 @@ static void gfxUpdateSpeedInclineMode(uint8_t mode)
   {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedSpeed);
+      lv_obj_clear_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
   }
   else if((mode & SPEED) == 0)
   {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_RED));
       lv_led_on(gfxLvLedSpeed);
+      lv_obj_add_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
   }
   if (mode & INCLINE)
   {
       lv_led_set_color(gfxLvLedIncline, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedIncline);
+      lv_obj_clear_state(gfxLvSwitchInclineControlMode, LV_STATE_CHECKED);
   }
   else if ((mode & INCLINE) == 0) {
       lv_led_set_color(gfxLvLedIncline, lv_palette_main(LV_PALETTE_RED));
       lv_led_on(gfxLvLedIncline);
+      lv_obj_add_state(gfxLvSwitchInclineControlMode, LV_STATE_CHECKED);
   }
 }
 
